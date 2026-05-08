@@ -100,6 +100,7 @@ for symbol in selected:
         symbol=symbol,
         timeframe_label="Daily",
         show_td_flip=st.session_state.indicator_flags.get("TD Flip", False),
+        show_td_9_count=st.session_state.indicator_flags.get("TD 9 Count", False),
     )
     st.plotly_chart(fig, use_container_width=True)
 

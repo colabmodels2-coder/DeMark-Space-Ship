@@ -19,128 +19,12 @@ def _missing_date_rangebreaks(index: pd.Index) -> list[dict]:
     return [{"values": missing_days.to_pydatetime().tolist()}]
 
 
-def _add_td_flip_reference_labels(fig: go.Figure, df: pd.DataFrame) -> None:
-    """Add temporary debug labels for the bars referenced by TD Flip logic."""
-    if len(df) < 6:
-        return
-
-    label_x: list[pd.Timestamp] = []
-    label_x_y: list[float] = []
-    label_x_text: list[str] = []
-
-    label_xp: list[pd.Timestamp] = []
-    label_xp_y: list[float] = []
-    label_xp_text: list[str] = []
-
-    label_y: list[pd.Timestamp] = []
-    label_y_y: list[float] = []
-    label_y_text: list[str] = []
-
-    label_yp: list[pd.Timestamp] = []
-    label_yp_y: list[float] = []
-    label_yp_text: list[str] = []
-
-    for i in range(len(df)):
-        if not bool(df["bullish_td_flip"].iloc[i] or df["bearish_td_flip"].iloc[i]):
-            continue
-        if i < 5:
-            continue
-
-        x_idx = df.index[i - 5]
-        xp_idx = df.index[i - 1]
-        y_idx = df.index[i - 4]
-        yp_idx = df.index[i]
-
-        label_x.append(x_idx)
-        label_x_y.append(float(df["High"].iloc[i - 5]) * 1.03)
-        label_x_text.append("X")
-
-        label_xp.append(xp_idx)
-        label_xp_y.append(float(df["High"].iloc[i - 1]) * 1.045)
-        label_xp_text.append("X'")
-
-        label_y.append(y_idx)
-        label_y_y.append(float(df["Low"].iloc[i - 4]) * 0.97)
-        label_y_text.append("Y")
-
-        label_yp.append(yp_idx)
-        label_yp_y.append(float(df["Low"].iloc[i]) * 0.955)
-        label_yp_text.append("Y'")
-
-    if label_x:
-        fig.add_trace(
-            go.Scatter(
-                x=label_x,
-                y=label_x_y,
-                mode="text",
-                text=label_x_text,
-                textposition="top center",
-                textfont=dict(size=10, color="#7c3aed", family="Courier New, monospace"),
-                name="TD Flip Ref X",
-                hovertext=["Previous comparison reference: Close[5]" for _ in label_x],
-                hoverinfo="x+text",
-            ),
-            row=1,
-            col=1,
-        )
-
-    if label_xp:
-        fig.add_trace(
-            go.Scatter(
-                x=label_xp,
-                y=label_xp_y,
-                mode="text",
-                text=label_xp_text,
-                textposition="top center",
-                textfont=dict(size=10, color="#a855f7", family="Courier New, monospace"),
-                name="TD Flip Ref X'",
-                hovertext=["Previous bar under test" for _ in label_xp],
-                hoverinfo="x+text",
-            ),
-            row=1,
-            col=1,
-        )
-
-    if label_y:
-        fig.add_trace(
-            go.Scatter(
-                x=label_y,
-                y=label_y_y,
-                mode="text",
-                text=label_y_text,
-                textposition="bottom center",
-                textfont=dict(size=10, color="#0f766e", family="Courier New, monospace"),
-                name="TD Flip Ref Y",
-                hovertext=["Current comparison reference: Close[4]" for _ in label_y],
-                hoverinfo="x+text",
-            ),
-            row=1,
-            col=1,
-        )
-
-    if label_yp:
-        fig.add_trace(
-            go.Scatter(
-                x=label_yp,
-                y=label_yp_y,
-                mode="text",
-                text=label_yp_text,
-                textposition="bottom center",
-                textfont=dict(size=10, color="#14b8a6", family="Courier New, monospace"),
-                name="TD Flip Ref Y'",
-                hovertext=["Current bar under test" for _ in label_yp],
-                hoverinfo="x+text",
-            ),
-            row=1,
-            col=1,
-        )
-
-
 def build_figure(
     df: pd.DataFrame,
     symbol: str,
     timeframe_label: str = "Daily",
     show_td_flip: bool = False,
+    show_td_9_count: bool = False,
 ) -> go.Figure:
     """Build a plain OHLC + volume figure with optional indicator overlays."""
     rangebreaks = _missing_date_rangebreaks(df.index)
@@ -181,7 +65,44 @@ def build_figure(
         col=1,
     )
 
-    if show_td_flip:
+    if show_td_9_count:
+        buy_setup = df[df.get("buy_td_setup", 0) > 0]
+        if not buy_setup.empty:
+            fig.add_trace(
+                go.Scatter(
+                    x=buy_setup.index,
+                    y=buy_setup["Low"] * 0.99,
+                    mode="text",
+                    text=[str(int(value)) for value in buy_setup["buy_td_setup"]],
+                    textposition="bottom center",
+                    textfont=dict(size=12, color="#2563eb", family="Courier New, monospace"),
+                    name="Buy TD 9 Count",
+                    hovertext=[f"Buy TD Setup {int(value)}/9" for value in buy_setup["buy_td_setup"]],
+                    hoverinfo="x+text",
+                ),
+                row=1,
+                col=1,
+            )
+
+        sell_setup = df[df.get("sell_td_setup", 0) > 0]
+        if not sell_setup.empty:
+            fig.add_trace(
+                go.Scatter(
+                    x=sell_setup.index,
+                    y=sell_setup["High"] * 1.01,
+                    mode="text",
+                    text=[str(int(value)) for value in sell_setup["sell_td_setup"]],
+                    textposition="top center",
+                    textfont=dict(size=12, color="#dc2626", family="Courier New, monospace"),
+                    name="Sell TD 9 Count",
+                    hovertext=[f"Sell TD Setup {int(value)}/9" for value in sell_setup["sell_td_setup"]],
+                    hoverinfo="x+text",
+                ),
+                row=1,
+                col=1,
+            )
+
+    if show_td_flip and not show_td_9_count:
         bullish_flip = df[df.get("bullish_td_flip", False)]
         if not bullish_flip.empty:
             fig.add_trace(
@@ -217,8 +138,6 @@ def build_figure(
                 row=1,
                 col=1,
             )
-
-            _add_td_flip_reference_labels(fig, df)
 
     fig.update_layout(
         template="plotly_white",
