@@ -19,8 +19,13 @@ def _missing_date_rangebreaks(index: pd.Index) -> list[dict]:
     return [{"values": missing_days.to_pydatetime().tolist()}]
 
 
-def build_figure(df: pd.DataFrame, symbol: str, timeframe_label: str = "Daily") -> go.Figure:
-    """Build a plain OHLC + volume figure with no indicator overlays."""
+def build_figure(
+    df: pd.DataFrame,
+    symbol: str,
+    timeframe_label: str = "Daily",
+    show_td_flip: bool = False,
+) -> go.Figure:
+    """Build a plain OHLC + volume figure with optional indicator overlays."""
     rangebreaks = _missing_date_rangebreaks(df.index)
 
     fig = make_subplots(
@@ -58,6 +63,43 @@ def build_figure(df: pd.DataFrame, symbol: str, timeframe_label: str = "Daily") 
         row=2,
         col=1,
     )
+
+    if show_td_flip:
+        bullish_flip = df[df.get("bullish_td_flip", False)]
+        if not bullish_flip.empty:
+            fig.add_trace(
+                go.Scatter(
+                    x=bullish_flip.index,
+                    y=bullish_flip["High"] * 1.01,
+                    mode="text",
+                    text=["1"] * len(bullish_flip),
+                    textposition="top center",
+                    textfont=dict(size=12, color="#dc2626", family="Courier New, monospace"),
+                    name="Bullish TD Flip",
+                    hovertext=["Bullish TD Flip" for _ in bullish_flip.index],
+                    hoverinfo="x+text",
+                ),
+                row=1,
+                col=1,
+            )
+
+        bearish_flip = df[df.get("bearish_td_flip", False)]
+        if not bearish_flip.empty:
+            fig.add_trace(
+                go.Scatter(
+                    x=bearish_flip.index,
+                    y=bearish_flip["Low"] * 0.99,
+                    mode="text",
+                    text=["1"] * len(bearish_flip),
+                    textposition="bottom center",
+                    textfont=dict(size=12, color="#2563eb", family="Courier New, monospace"),
+                    name="Bearish TD Flip",
+                    hovertext=["Bearish TD Flip" for _ in bearish_flip.index],
+                    hoverinfo="x+text",
+                ),
+                row=1,
+                col=1,
+            )
 
     fig.update_layout(
         template="plotly_white",
