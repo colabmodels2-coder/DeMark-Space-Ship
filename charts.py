@@ -5,8 +5,24 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 
+def _missing_date_rangebreaks(index: pd.Index) -> list[dict]:
+    """Build Plotly range breaks so missing calendar dates don't render as gaps."""
+    if len(index) < 2:
+        return []
+
+    dt_index = pd.DatetimeIndex(index).sort_values().normalize().unique()
+    full_range = pd.date_range(dt_index.min(), dt_index.max(), freq="D")
+    missing_days = full_range.difference(dt_index)
+    if missing_days.empty:
+        return []
+
+    return [{"values": missing_days.to_pydatetime().tolist()}]
+
+
 def build_figure(df: pd.DataFrame, symbol: str, timeframe_label: str = "Daily") -> go.Figure:
     """Build a plain OHLC + volume figure with no indicator overlays."""
+    rangebreaks = _missing_date_rangebreaks(df.index)
+
     fig = make_subplots(
         rows=2,
         cols=1,
@@ -54,5 +70,6 @@ def build_figure(df: pd.DataFrame, symbol: str, timeframe_label: str = "Daily") 
 
     fig.update_yaxes(title_text="Price", row=1, col=1)
     fig.update_yaxes(title_text="Volume", row=2, col=1)
+    fig.update_xaxes(rangebreaks=rangebreaks)
 
     return fig
