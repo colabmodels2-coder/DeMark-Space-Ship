@@ -60,7 +60,6 @@ def build_figure(df: pd.DataFrame, symbol: str, timeframe_label: str = "Daily") 
     )
 
     fig.update_layout(
-        title=f"{symbol} - {timeframe_label}",
         template="plotly_white",
         height=760,
         xaxis_rangeslider_visible=False,
