@@ -6,6 +6,7 @@ import streamlit as st
 from charts import build_figure
 from config import COMMODITIES, EQUITIES, FX, INDICATOR_PLACEHOLDERS, PERIOD_OPTIONS
 from data import load_ohlc
+from indicators import apply_indicators
 
 
 st.set_page_config(page_title="DeMark Dashboard Scaffold", layout="wide")
@@ -75,6 +76,8 @@ for symbol in selected:
         st.warning(f"No data available for {symbol}.")
         continue
 
+    data = apply_indicators(data)
+
     period_days = {"6mo": 183, "1y": 365, "2y": 730, "5y": 1825}.get(period, 365)
     cutoff = pd.Timestamp("today") - pd.Timedelta(days=period_days)
     display_df = data[data.index >= cutoff]
@@ -92,7 +95,12 @@ for symbol in selected:
     )
 
     st.subheader(symbol)
-    fig = build_figure(display_df, symbol=symbol, timeframe_label="Daily")
+    fig = build_figure(
+        display_df,
+        symbol=symbol,
+        timeframe_label="Daily",
+        show_td_flip=st.session_state.indicator_flags.get("TD Flip", False),
+    )
     st.plotly_chart(fig, use_container_width=True)
 
 if summary_rows:
